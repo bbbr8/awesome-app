@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Awesome App</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+      }
+      h1 {
+        color: #333;
+      }
+      #tasks {
+        list-style-type: none;
+        padding: 0;
+      }
+      #tasks li {
+        padding: 0.5rem;
+        border-bottom: 1px solid #eee;
+      }
+      #taskInput {
+        padding: 0.5rem;
+        width: 70%;
+        font-size: 1rem;
+      }
+      #addButton {
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        margin-left: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Awesome App</h1>
+    <ul id="tasks"></ul>
+    <input type="text" id="taskInput" placeholder="New task" />
+    <button id="addButton">Add Task</button>
+    <script>
+      const tasksEl = document.getElementById("tasks");
+      const inputEl = document.getElementById("taskInput");
+      const addButton = document.getElementById("addButton");
+
+      // Connect to the websocket endpoint
+      const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+
+      ws.onmessage = (event) => {
+        const message = event.data;
+        if (message.startsWith("new_task:")) {
+          // New task broadcast from the server
+          const task = JSON.parse(message.slice("new_task:".length));
+          addTaskToList(task);
+        } else if (message.startsWith("message:")) {
+          // Broadcast of generic message (for demonstration)
+          console.log(message.slice("message:".length));
+        }
+      };
+
+      // Populate tasks list on page load
+      async function loadTasks() {
+        const resp = await fetch("/tasks");
+        const data = await resp.json();
+        data.tasks.forEach(addTaskToList);
+      }
+
+      function addTaskToList(task) {
+        const li = document.createElement("li");
+        li.textContent = task.content;
+        tasksEl.appendChild(li);
+      }
+
+      addButton.addEventListener("click", () => {
+        const value = inputEl.value.trim();
+        if (value) {
+          // Send a command to the server to add the task via websocket
+          ws.send(`add_task:${value}`);
+          inputEl.value = "";
+        }
+      });
+
+      // Kick off initial load
+      loadTasks();
+    </script>
+  </body>
+</html>
